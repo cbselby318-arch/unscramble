@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0f">
+<link rel="manifest" href="manifest.json">
+<title>Unscramble!</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #14141f;
+    --surface2: #1e1e2e;
+    --border: #2a2a3a;
+    --text: #e0e0e8;
+    --dim: #666680;
+    --accent: #6c63ff;
+    --accent-glow: #8b83ff;
+    --green: #4ade80;
+    --green-dim: #166534;
+    --red: #f87171;
+    --red-dim: #7f1d1d;
+    --yellow: #fbbf24;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Inter', system-ui, sans-serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  /* ===== Screens ===== */
+  .screen { display: none; width: 100%; max-width: 600px; padding: 20px; text-align: center; }
+  .screen.active { display: block; animation: fadeIn 0.3s ease; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ===== Title Screen ===== */
+  h1 {
+    font-size: 3rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), #a78bfa, #f472b6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  .subtitle { color: var(--dim); font-size: 1rem; margin-bottom: 40px; }
+
+  .difficulty-cards { display: flex; gap: 16px; justify-content: center; margin-bottom: 30px; }
+  .diff-card {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex: 1;
+    max-width: 170px;
+  }
+  .diff-card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: 0 8px 30px rgba(108,99,255,0.15); }
+  .diff-card .letters { font-family: var(--mono); font-size: 2rem; font-weight: 700; color: var(--accent-glow); }
+  .diff-card .label { font-size: 0.85rem; color: var(--dim); margin-top: 8px; }
+  .diff-card .count { font-size: 0.75rem; color: var(--dim); margin-top: 4px; opacity: 0.6; }
+
+  .rules {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: left;
+    color: var(--dim);
+    font-size: 0.85rem;
+    line-height: 1.8;
+  }
+  .rules strong { color: var(--text); }
+
+  /* ===== Game Screen ===== */
+  .game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 12px 20px;
+    background: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+  .game-header .stat { text-align: center; }
+  .game-header .stat-label { font-size: 0.7rem; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; }
+  .game-header .stat-value { font-family: var(--mono); font-size: 1.4rem; font-weight: 700; }
+  .game-header .stat-value.timer { color: var(--yellow); }
+
+  .round-label { color: var(--dim); font-size: 0.85rem; margin-bottom: 16px; }
+
+  .jumbled-word {
+    font-family: var(--mono);
+    font-size: 3.5rem;
+    font-weight: 700;
+    letter-spacing: 12px;
+    color: var(--text);
+    margin: 20px 0;
+    min-height: 80px;
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+  }
+  .jumbled-letter {
+    display: inline-block;
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    width: 56px;
+    height: 64px;
+    line-height: 60px;
+    text-align: center;
+    letter-spacing: 0;
+    transition: all 0.15s;
+  }
+
+  .input-area { margin: 30px 0 20px; position: relative; }
+  #answer-input {
+    font-family: var(--mono);
+    font-size: 1.8rem;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 6px;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    padding: 16px 24px;
+    width: 100%;
+    max-width: 400px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  #answer-input:focus { border-color: var(--accent); }
+  #answer-input.correct { border-color: var(--green); box-shadow: 0 0 20px rgba(74,222,128,0.2); }
+  #answer-input.wrong { border-color: var(--red); animation: shake 0.4s ease; }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-8px); }
+    40%, 80% { transform: translateX(8px); }
+  }
+
+  .word-timer {
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    color: var(--dim);
+    margin-top: 12px;
+  }
+
+  .feedback {
+    font-size: 1rem;
+    margin-top: 16px;
+    min-height: 30px;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .feedback.good { color: var(--green); }
+  .feedback.bad { color: var(--red); }
+
+  .skip-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    padding: 8px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    margin-top: 16px;
+    transition: all 0.2s;
+  }
+  .skip-btn:hover { border-color: var(--red); color: var(--red); }
+
+  /* ===== Results Screen ===== */
+  .results-title {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+  .results-subtitle { color: var(--dim); margin-bottom: 30px; }
+
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 30px;
+  }
+  .result-card {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid var(--border);
+  }
+  .result-card .rc-label { font-size: 0.75rem; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; }
+  .result-card .rc-value { font-family: var(--mono); font-size: 1.6rem; font-weight: 700; margin-top: 6px; }
+  .result-card .rc-value.highlight { color: var(--accent-glow); }
+  .result-card .rc-value.green { color: var(--green); }
+
+  .word-results {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+    max-height: 200px;
+    overflow-y: auto;
+    text-align: left;
+  }
+  .word-result-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 8px;
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .word-result-row:last-child { border-bottom: none; }
+  .word-result-row .wr-word { font-family: var(--mono); font-weight: 600; }
+  .word-result-row .wr-time { font-family: var(--mono); color: var(--dim); }
+  .word-result-row.skipped .wr-word { color: var(--red); }
+  .word-result-row.skipped .wr-time { color: var(--red); }
+
+  .btn-row { display: flex; gap: 12px; justify-content: center; }
+  .btn {
+    padding: 14px 32px;
+    border-radius: 12px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent-glow); transform: translateY(-2px); }
+  .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); }
+
+  /* ===== Leaderboard ===== */
+  .leaderboard {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 20px;
+    text-align: left;
+  }
+  .lb-title { font-size: 1rem; font-weight: 700; margin-bottom: 12px; color: var(--accent-glow); }
+  .lb-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 4px;
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-rank { color: var(--dim); width: 30px; }
+  .lb-name { flex: 1; }
+  .lb-score { font-family: var(--mono); color: var(--yellow); }
+  .lb-row.highlight { color: var(--green); }
+  .lb-row.highlight .lb-score { color: var(--green); }
+
+  .lb-empty { color: var(--dim); font-style: italic; font-size: 0.85rem; padding: 10px; }
+
+  /* ===== Name Input Modal ===== */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 30px;
+    text-align: center;
+    max-width: 360px;
+    width: 90%;
+  }
+  .modal h3 { margin-bottom: 16px; }
+  .modal input {
+    font-family: var(--mono);
+    font-size: 1.2rem;
+    text-align: center;
+    text-transform: uppercase;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 12px;
+    width: 100%;
+    outline: none;
+    margin-bottom: 16px;
+  }
+  .modal input:focus { border-color: var(--accent); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ===== MOBILE ===== */
+  html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+  @media (max-width: 480px) {
+    body {
+      overflow-y: auto;
+      align-items: flex-start;
+      padding-top: 10px;
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+    }
+
+    .screen { padding: 12px; }
+
+    h1 { font-size: 2rem; }
+    .subtitle { font-size: 0.85rem; margin-bottom: 24px; }
+
+    .difficulty-cards { flex-direction: column; align-items: center; gap: 10px; }
+    .diff-card { max-width: 100%; width: 100%; padding: 16px; display: flex; align-items: center; gap: 16px; text-align: left; }
+    .diff-card .letters { font-size: 1.6rem; min-width: 50px; text-align: center; }
+    .diff-card .label { margin-top: 0; }
+    .diff-card .count { margin-top: 2px; }
+
+    .rules { font-size: 0.78rem; padding: 14px; }
+
+    .game-header { padding: 8px 12px; margin-bottom: 16px; flex-wrap: wrap; gap: 4px; }
+    .game-header .stat-label { font-size: 0.6rem; }
+    .game-header .stat-value { font-size: 1.1rem; }
+
+    .jumbled-word { font-size: 2.2rem; gap: 4px; margin: 12px 0; }
+    .jumbled-letter { width: 44px; height: 52px; line-height: 48px; font-size: inherit; border-radius: 6px; }
+
+    .input-area { margin: 16px 0 12px; }
+    #answer-input { font-size: 1.4rem; padding: 14px 16px; letter-spacing: 4px; max-width: 100%; }
+
+    .word-timer { font-size: 0.95rem; }
+    .feedback { font-size: 0.9rem; }
+
+    .skip-btn { padding: 12px 28px; font-size: 0.9rem; }
+
+    .results-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .result-card { padding: 12px 8px; }
+    .result-card .rc-value { font-size: 1.2rem; }
+    .result-card .rc-label { font-size: 0.65rem; }
+
+    .btn { padding: 14px 24px; font-size: 0.95rem; width: 100%; }
+    .btn-row { flex-direction: column; }
+
+    .leaderboard { padding: 14px; }
+    .lb-row { font-size: 0.8rem; padding: 6px 2px; }
+  }
+
+  /* 6-letter tiles on very small screens */
+  @media (max-width: 360px) {
+    .jumbled-word { font-size: 1.8rem; gap: 3px; }
+    .jumbled-letter { width: 38px; height: 46px; line-height: 42px; }
+    #answer-input { font-size: 1.2rem; letter-spacing: 3px; }
+    h1 { font-size: 1.6rem; }
+  }
+
+  /* Handle virtual keyboard pushing content */
+  @media (max-height: 500px) {
+    .game-header { margin-bottom: 8px; padding: 6px 10px; }
+    .jumbled-word { margin: 6px 0; }
+    .round-label { margin-bottom: 6px; font-size: 0.75rem; }
+    .input-area { margin: 8px 0; }
+    .skip-btn { margin-top: 6px; }
+    .word-timer { margin-top: 4px; }
+    .feedback { margin-top: 4px; min-height: 20px; }
+  }
+
+  /* Install prompt */
+  .install-banner {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-top: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+    color: var(--dim);
+  }
+  .install-banner:hover { border-color: var(--accent-glow); }
+  .install-banner strong { color: var(--accent-glow); }
+</style>
+</head>
+<body>
+
+<!-- ===== TITLE SCREEN ===== -->
+<div id="title-screen" class="screen active">
+  <h1>UNSCRAMBLE!</h1>
+  <p class="subtitle">One jumble. One answer. How fast can you see it?</p>
+
+  <div class="difficulty-cards">
+    <div class="diff-card" onclick="startGame(4)">
+      <div class="letters">4</div>
+      <div class="label">Letters</div>
+      <div class="count">Easy</div>
+    </div>
+    <div class="diff-card" onclick="startGame(5)">
+      <div class="letters">5</div>
+      <div class="label">Letters</div>
+      <div class="count">Medium</div>
+    </div>
+    <div class="diff-card" onclick="startGame(6)">
+      <div class="letters">6</div>
+      <div class="label">Letters</div>
+      <div class="count">Hard</div>
+    </div>
+  </div>
+
+  <div class="rules">
+    <strong>How to play:</strong><br>
+    ◆ Each word is scrambled — type the answer and press Enter<br>
+    ◆ Every puzzle has <strong>exactly one solution</strong> — no guessing<br>
+    ◆ 10 words per round — solve them as fast as you can<br>
+    ◆ Skip a word with the skip button (costs 10 second penalty)<br>
+    ◆ Your total time goes on the leaderboard
+  </div>
+
+  <div id="title-leaderboards" style="margin-top: 20px;"></div>
+
+  <div class="install-banner" id="install-banner" onclick="installPWA()">
+    <strong>📱 Install App</strong> — Add to your home screen for fullscreen play!
+  </div>
+</div>
+
+<!-- ===== GAME SCREEN ===== -->
+<div id="game-screen" class="screen">
+  <div class="game-header">
+    <div class="stat">
+      <div class="stat-label">Word</div>
+      <div class="stat-value" id="word-count">1/10</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Total Time</div>
+      <div class="stat-value timer" id="total-timer">0.0s</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Solved</div>
+      <div class="stat-value green" id="solved-count" style="color:var(--green)">0</div>
+    </div>
+  </div>
+
+  <div class="round-label" id="round-label">4-Letter Round</div>
+
+  <div class="jumbled-word" id="jumbled-word"></div>
+
+  <div class="input-area">
+    <input type="text" id="answer-input" placeholder="TYPE ANSWER" autocomplete="off" spellcheck="false">
+  </div>
+
+  <div class="word-timer" id="word-timer">0.0s</div>
+  <div class="feedback" id="feedback"></div>
+  <button class="skip-btn" onclick="skipWord()">Skip (+10s penalty)</button>
+</div>
+
+<!-- ===== RESULTS SCREEN ===== -->
+<div id="results-screen" class="screen">
+  <div class="results-title" id="results-title">Round Complete!</div>
+  <div class="results-subtitle" id="results-subtitle"></div>
+
+  <div class="results-grid">
+    <div class="result-card">
+      <div class="rc-label">Total Time</div>
+      <div class="rc-value highlight" id="res-total-time">0.0s</div>
+    </div>
+    <div class="result-card">
+      <div class="rc-label">Solved</div>
+      <div class="rc-value green" id="res-solved">0/10</div>
+    </div>
+    <div class="result-card">
+      <div class="rc-label">Avg / Word</div>
+      <div class="rc-value" id="res-avg">0.0s</div>
+    </div>
+  </div>
+
+  <div class="word-results" id="word-results"></div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="showScreen('title-screen'); showTitleLeaderboards();">Play Again</button>
+  </div>
+
+  <div id="results-leaderboard" style="margin-top: 20px;"></div>
+</div>
+
+<!-- ===== NAME MODAL ===== -->
+<div class="modal-overlay" id="name-modal">
+  <div class="modal">
+    <h3>🏆 New Leaderboard Entry!</h3>
+    <p style="color:var(--dim); margin-bottom:16px; font-size:0.9rem;">Enter your name:</p>
+    <input type="text" id="name-input" maxlength="12" placeholder="YOUR NAME">
+    <button class="btn btn-primary" onclick="submitName()" style="width:100%;">Submit</button>
+  </div>
+</div>
+
+<script>
+// =============================================
+// WORD LIST (unique anagrams only)
+// =============================================
+const WORD_LIST = {"4": ["ALLY", "APEX", "AQUA", "AREA", "ASKS", "AUTO", "AWAY", "AXIS", "BACK", "BALL", "BAND", "BANG", "BECK", "BEES", "BELL", "BEND", "BENT", "BILL", "BITE", "BLAH", "BLDG", "BLEW", "BLVD", "BOMB", "BOND", "BOOM", "BOOT", "BORN", "BOUT", "BRED", "BREW", "BUCK", "BUFF", "BULK", "BULL", "BUMP", "BURN", "BURR", "BUTT", "BUZZ", "BYTE", "CAGE", "CAKE", "CALC", "CALF", "CALL", "CAMP", "CANT", "CARD", "CARR", "CASA", "CASH", "CAVE", "CELL", "CENT", "CERN", "CHEF", "CHEN", "CHER", "CHEW", "CHIC", "CHOP", "CHOW", "CIAO", "CITY", "CLAD", "CLAN", "CLIP", "CLIT", "CLUB", "COCA", "COCK", "COCO", "COLL", "COMB", "COME", "COMM", "COMP", "COND", "CONF", "CONN", "CONS", "CONT", "COOK", "COPY", "CORN", "CORR", "COUP", "COZY", "CRAB", "CREW", "CRIB", "CROW", "CTRL", "CUBA", "CUBE", "CUBS", "CUFF", "CULT", "CURL", "CUTE", "DAMP", "DARK", "DEBT", "DECK", "DEED", "DEPT", "DESC", "DICK", "DIED", "DIFF", "DING", "DIRK", "DISC", "DISH", "DOCK", "DOLL", "DONT", "DOUG", "DOVE", "DOWN", "DRAM", "DRIP", "DRUG", "DRUM", "DUCK", "DUCT", "DUDE", "DUFF", "DUKE", "DULL", "DULY", "DUMB", "DUMP", "DUSK", "DUTY", "DYKE", "EASE", "ECHO", "EGGS", "ELLE", "EXCL", "EXEC", "EXIT", "EXPO", "FACT", "FALL", "FAME", "FANS", "FAUX", "FEED", "FEES", "FELL", "FIGS", "FIJI", "FILL", "FILM", "FIND", "FINS", "FISH", "FIVE", "FLAG", "FLAP", "FLAW", "FLEX", "FLIP", "FLOP", "FLUX", "FOAM", "FOLK", "FOND", "FONT", "FOOD", "FOOT", "FORK", "FOUL", "FOUR", "FRAU", "FREQ", "FREY", "FROG", "FUCK", "FUJI", "FULL", "FUND", "FUNK", "FURY", "GAGE", "GANG", "GAZE", "GEEK", "GEMS", "GENE", "GIFT", "GIGS", "GILL", "GIMP", "GIRL", "GIVE", "GLAD", "GOOD", "GOTH", "GREG", "GREW", "GRIM", "GROW", "GULF", "GULL", "GURU", "GUYS", "GYMS", "HACK", "HAHA", "HALF", "HALL", "HARD", "HARM", "HATH", "HAVE", "HAWK", "HAZE", "HECK", "HEHE", "HELD", "HELL", "HELP", "HEMP", "HERD", "HIGH", "HIKE", "HILL", "HOLD", "HOLE", "HOLY", "HOME", "HONG", "HOOD", "HOOK", "HORN", "HOUR", "HOWE", "HUGE", "HUGH", "HULK", "HULL", "HUNG", "HUNK", "HUNT", "HUSH", "HYDE", "HYMN", "HYPE", "IBIS", "INDY", "INIT", "INNS", "IOWA", "IRAQ", "IRIS", "JAMS", "JARS", "JAVA", "JAWS", "JAZZ", "JEEP", "JEFF", "JERK", "JESS", "JEUX", "JEWS", "JIVE", "JOAN", "JOBS", "JOEY", "JOKE", "JONG", "JOUR", "JUDE", "JULY", "JUMP", "JUNK", "JURY", "KART", "KBPS", "KENO", "KICK", "KIEV", "KILL", "KIWI", "KNEW", "KNOX", "LAND", "LANG", "LAWN", "LAZY", "LEND", "LENS", "LENT", "LEVY", "LIBS", "LICK", "LIEU", "LIMB", "LING", "LINN", "LOAN", "LONG", "LORD", "LUCK", "LUIS", "LULU", "LYNX", "MACK", "MALL", "MANN", "MANS", "MARX", "MASS", "MATH", "MAXI", "MAZE", "MELT", "MENS", "MENT", "MESS", "MILD", "MILK", "MILL", "MING", "MINI", "MINT", "MISC", "MOCK", "MOLD", "MOLE", "MOMS", "MONK", "MONT", "MOSS", "MOVE", "MULE", "MYTH", "NAPA", "NAVY", "NECK", "NESS", "NEXT", "NOON", "NOUN", "NOVA", "NOVO", "NULL", "OATH", "OBEY", "OFFS", "OHIO", "ONYX", "OOPS", "OTIS", "OVAL", "PACK", "PAID", "PANT", "PAPA", "PARK", "PECK", "PICK", "PILL", "PIMP", "PING", "PINK", "PINT", "PIPE", "PITY", "PLAN", "POLL", "POND", "PONG", "PONY", "POPS", "PORK", "PRAY", "PRIX", "PROB", "PROF", "PROG", "PROV", "PUBS", "PUFF", "PULL", "PUMA", "PUMP", "PUNK", "PUNT", "PUSH", "QUAD", "QUAN", "QUAY", "QUIT", "QUIZ", "QUOT", "RASH", "REDS", "RIBS", "RICH", "RITZ", "ROLL", "ROOF", "ROWS", "RSVP", "RUIN", "SAFE", "SAWS", "SAYS", "SEXY", "SICK", "SINS", "SIZE", "SOCK", "SONS", "SOUL", "SQRT", "STAY", "SUNS", "SWIM", "SYNC", "TACK", "TALK", "TALL", "TAXI", "TEES", "TELL", "TERM", "TEXT", "THUG", "TICK", "TIDY", "TIFF", "TIKI", "TILT", "TINY", "TITS", "TODD", "TOES", "TOLL", "TOMB", "TOTE", "TOUT", "TREK", "TRIM", "TRIP", "TRUE", "TUCK", "TURF", "TYPE", "TYPO", "UNDO", "UNIT", "UNIV", "UNIX", "VARY", "VENT", "VERY", "VIBE", "VIII", "VITA", "VIVA", "VIVO", "VOLT", "VOWS", "WACO", "WAIT", "WALL", "WARM", "WAVE", "WEBS", "WEEK", "WHIP", "WHOM", "WIFE", "WILD", "WILL", "WIND", "WINE", "WING", "WINK", "WINS", "WIPE", "WISE", "WISH", "WOKE", "WOOD", "WOOL", "WORK", "WORN", "WRIT", "XIII", "XMAS", "YALE", "YANG", "YELL", "YOGA", "YOUR", "YUAN", "ZACH", "ZERO", "ZETA", "ZIFF", "ZINC", "ZONE"], "5": ["ABIDE", "ABOUT", "ABOVE", "ACUTE", "ADAPT", "ADDED", "ADOPT", "AGING", "ALBUM", "ALIAS", "ALLOW", "ALOUD", "ALPHA", "ANKLE", "ANNEX", "APPLY", "APRON", "ARBOR", "ARIEL", "ARRAY", "ARROW", "ASKED", "ASSAY", "ASSOC", "AUDIO", "AUDIT", "AVANT", "AVIAN", "AVOID", "AWAIT", "AWAKE", "AWARD", "AWARE", "AXIAL", "BACKS", "BAKED", "BALLS", "BANDS", "BANFF", "BANJO", "BANKS", "BARRY", "BATCH", "BECKY", "BEGUN", "BEIGE", "BELLE", "BELLS", "BELLY", "BENCH", "BENNY", "BERRY", "BETTY", "BEZEL", "BILLS", "BILLY", "BINDS", "BIRCH", "BITCH", "BLACK", "BLANC", "BLAND", "BLANK", "BLAZE", "BLEND", "BLESS", "BLIND", "BLINK", "BLISS", "BLITZ", "BLOCK", "BLOND", "BLOOM", "BLOWN", "BLUFF", "BLUNT", "BOBBY", "BOGUS", "BOMBS", "BONDS", "BOOBS", "BOONE", "BOOTY", "BOSCH", "BOUND", "BOXED", "BOXES", "BRAND", "BRASS", "BRAVO", "BRENT", "BRETT", "BRICK", "BRING", "BROCK", "BROKE", "BRONX", "BROOK", "BROWN", "BUCKS", "BUDDY", "BUFFY", "BUGGY", "BUICK", "BUILD", "BUILT", "BULBS", "BULLS", "BUNCH", "BUNNY", "BURNS", "BUSES", "BUSTY", "BUTTE", "BUTTS", "CAGES", "CAJUN", "CAKES", "CANAL", "CARAT", "CARDS", "CARGO", "CARRY", "CASEY", "CATCH", "CAVES", "CEASE", "CELEB", "CELLO", "CELLS", "CHALK", "CHAMP", "CHECK", "CHEFS", "CHENG", "CHESS", "CHEVY", "CHICK", "CHICO", "CHILD", "CHILL", "CHING", "CHIPS", "CHORD", "CHRIS", "CHUCK", "CHUNG", "CHUNK", "CINDY", "CIRCA", "CISCO", "CIVIC", "CIVIL", "CLAMP", "CLARK", "CLASH", "CLASS", "CLERK", "CLICK", "CLIMB", "CLINT", "CLIPS", "CLOCK", "CLOTH", "CLOWN", "CLUBS", "COCKS", "COCOS", "CODEC", "CODED", "COLON", "COMES", "COMIC", "COMMA", "CONST", "COUCH", "COUGH", "COUNT", "CRACK", "CRANK", "CRAWL", "CRAZY", "CREEK", "CREST", "CROSS", "CROWD", "CROWN", "CRUSH", "CRYPT", "CUBAN", "CUBIC", "CURLY", "CURRY", "CURVE", "CYCLE", "CYRUS", "CZECH", "DADDY", "DANNY", "DANSK", "DATED", "DATUM", "DAVID", "DEBTS", "DECKS", "DEEDS", "DEPTH", "DERBY", "DEREK", "DESKS", "DICKS", "DIDNT", "DIGIT", "DILDO", "DIODE", "DIRTY", "DISCS", "DIXIE", "DODGE", "DOLCE", "DOLLS", "DOSES", "DOUBT", "DOUGH", "DOWNS", "DRAFT", "DRANK", "DRAWN", "DRESS", "DRIFT", "DRILL", "DRINK", "DRUGS", "DRUMS", "DRUNK", "DUANE", "DUCKS", "DUKES", "DUMMY", "DUTCH", "DWARF", "DWELL", "EDDIE", "EGYPT", "EIGHT", "ELDER", "ELECT", "EMPTY", "EMULE", "ENDED", "ENJOY", "ENTRY", "EPOXY", "ERROR", "EVENT", "EVITE", "EXACT", "EXAMS", "EXCEL", "EXILE", "FABLE", "FACED", "FACTS", "FADED", "FAIRY", "FAITH", "FAKES", "FALLS", "FANCY", "FARMS", "FATTY", "FAULT", "FAUNA", "FAVOR", "FAXES", "FEEDS", "FELIX", "FEMME", "FENCE", "FETCH", "FETUS", "FEVER", "FEWER", "FIFTH", "FIGHT", "FILLS", "FILMS", "FILTH", "FINCH", "FINDS", "FIRMS", "FIXES", "FLAGS", "FLASH", "FLATS", "FLAWS", "FLEET", "FLICK", "FLINT", "FLIRT", "FLOCK", "FLOOD", "FLOOR", "FLORA", "FLOWN", "FLUID", "FLUSH", "FLUTE", "FOCUS", "FOLDS", "FOLIO", "FOLKS", "FONTS", "FOODS", "FORCE", "FORMS", "FORTY", "FORUM", "FRANC", "FRANK", "FRANZ", "FRESH", "FROGS", "FRONT", "FRUIT", "FUCKS", "FUDGE", "FULLY", "FUNDS", "FUNKY", "FUNNY", "FURRY", "FUZZY", "GANGS", "GAUGE", "GENES", "GEOFF", "GIFTS", "GIRLS", "GIVEN", "GIVES", "GLAND", "GLENN", "GLORY", "GLOVE", "GOING", "GONNA", "GOODS", "GOOSE", "GOTTA", "GOWNS", "GRAMS", "GRANT", "GRAPH", "GRASS", "GRAVE", "GREEK", "GRIEF", "GRILL", "GRIND", "GROOM", "GROSS", "GROUP", "GROVE", "GROWS", "GUARD", "GUESS", "GUEST", "GUILD", "GUILT", "GYPSY", "HAGUE", "HAIRY", "HAITI", "HANDS", "HANNA", "HANOI", "HAPPY", "HARRY", "HARSH", "HAUTE", "HAVEN", "HAVOC", "HAWKS", "HAYES", "HEAVY", "HEDGE", "HEIDI", "HELEN", "HELIX", "HELLO", "HENCE", "HERBS", "HERTZ", "HIGHS", "HINDI", "HOBBY", "HOLDS", "HOLLY", "HOMES", "HOMME", "HONDA", "HONEY", "HONOR", "HORDE", "HORNY", "HOUND", "HOURS", "HOUSE", "HUNKS", "HURRY", "HUSKY", "HYDRO", "HYPER", "IDAHO", "IMAGE", "INDIA", "IONIC", "IRAQI", "IRONY", "IRWIN", "ISAAC", "JACKS", "JACOB", "JAMES", "JANET", "JAPAN", "JELLY", "JENNA", "JERRY", "JESSE", "JESUS", "JEWEL", "JOHNS", "JOINS", "JOINT", "JOKES", "JOLLY", "JONES", "JORGE", "JOYCE", "JUDGE", "JUICE", "JUICY", "JULES", "JULIA", "JULIE", "JULIO", "JUMBO", "JUMPS", "KAPPA", "KATHY", "KELLY", "KENYA", "KERRY", "KICKS", "KINKY", "KIOSK", "KITTY", "KNIFE", "KNOCK", "KNOWN", "KODAK", "KOREA", "KRAFT", "LANDS", "LATCH", "LAUGH", "LEAVE", "LEONE", "LEVEL", "LIGHT", "LIKED", "LIKES", "LILLY", "LIMBS", "LINER", "LIPID", "LOADS", "LOBBY", "LOCUS", "LOGIC", "LOHAN", "LORDS", "LOTTO", "LOUIS", "LOVER", "LUCKY", "LUNCH", "LYMPH", "LYNCH", "MADAM", "MAFIA", "MAIZE", "MALAY", "MAMBO", "MARIA", "MARKS", "MARRY", "MASKS", "MATCH", "MATHS", "MATTE", "MAVEN", "MAXIM", "MAZDA", "MCCOY", "MERGE", "MERRY", "MESSY", "MIAMI", "MIDST", "MIGHT", "MILLS", "MINDS", "MIXED", "MIXES", "MODEL", "MODEM", "MOMMA", "MOMMY", "MONDO", "MONKS", "MONTH", "MOODY", "MOOSE", "MOSES", "MOTIF", "MOTOR", "MOTTO", "MOUTH", "MOVED", "MOVES", "MOVIE", "MUDDY", "MUMMY", "NANNY", "NAZIS", "NELLY", "NEWLY", "NIFTY", "NIKON", "NINJA", "NINTH", "NOVEL", "OBESE", "OCCUR", "OFTEN", "OMEGA", "ONION", "OPERA", "ORBIT", "ORDER", "ORION", "OUNCE", "OWING", "OZONE", "PALMA", "PANDA", "PANIC", "PANTS", "PANTY", "PAOLO", "PAPUA", "PATTY", "PAUSE", "PAVED", "PEACE", "PEGGY", "PETTY", "PHOTO", "PIANO", "PIECE", "PINCH", "PIPER", "PITCH", "PIVOT", "PIXEL", "PIZZA", "PLANS", "PLANT", "PLAZA", "PLUMP", "PLUSH", "POLLS", "POLLY", "PONDS", "POPPY", "PORCH", "PORNO", "POUND", "POWER", "PRESS", "PRINT", "PRIOR", "PRIZE", "PROMO", "PRONE", "PROOF", "PROPS", "PROUD", "PROVE", "PROXY", "PUFFY", "PULLS", "PUMPS", "PUNCH", "PUPIL", "PUPPY", "PUSSY", "QATAR", "QUARK", "QUART", "QUEEN", "QUEER", "QUERY", "QUEUE", "QUICK", "QUILT", "QUOTA", "RABBI", "RADAR", "RALLY", "RANCH", "RANDY", "RHINO", "RICKY", "RIGID", "RILEY", "RIVER", "ROLLS", "ROTOR", "ROUGH", "ROUND", "ROVER", "ROYAL", "RUGBY", "RUMOR", "SADLY", "SAKAI", "SALAD", "SALSA", "SAMMY", "SANDS", "SANTO", "SASSY", "SAVVY", "SCAMS", "SCANS", "SCARF", "SCOUT", "SEIZE", "SELLS", "SENSE", "SHAWN", "SHEDS", "SHEEP", "SHIFT", "SHINY", "SHIPS", "SHOWN", "SIDED", "SIDES", "SIGHT", "SILKY", "SIOUX", "SIXTH", "SIZED", "SKULL", "SLASH", "SLOTS", "SMOKY", "SNACK", "SOCKS", "SOFIA", "SONGS", "SONNY", "SORRY", "SOUPS", "SPECS", "SPELL", "SPENT", "SPICY", "SPURS", "STAFF", "STALL", "STARR", "STATS", "STEMS", "STEVE", "STOCK", "STONY", "STOOD", "STUNT", "STYLE", "SUEDE", "SUNNY", "SUSHI", "SWAMP", "SWEPT", "SWIFT", "SWISS", "SWORN", "TABOO", "TAKEN", "TALLY", "TAMIL", "TAMMY", "TAMPA", "TANYA", "TASTY", "TAXIS", "TEDDY", "TEMPE", "TEMPO", "TEMPS", "TENTH", "TERRE", "TEXTS", "THATS", "THEFT", "THICK", "THIEF", "THINK", "THIRD", "THONG", "THREW", "THUMB", "TIGHT", "TIMOR", "TITLE", "TITUS", "TOKEN", "TOOTH", "TOPAZ", "TORAH", "TOXIC", "TRACK", "TRACT", "TRENT", "TRICK", "TROLL", "TRUCK", "TRUMP", "TRUNK", "TUMMY", "TUMOR", "TURBO", "TWEAK", "TWICE", "TWINK", "TWINS", "TYING", "TYPED", "TYPES", "UNCLE", "UNCUT", "UNION", "UNITY", "UPPER", "UTTER", "VAGUE", "VALET", "VALID", "VALVE", "VANCE", "VAPOR", "VAULT", "VEGAS", "VENUE", "VERBS", "VESTS", "VICKI", "VIDEO", "VILLA", "VILLE", "VINYL", "VIPER", "VIRUS", "VISAS", "VISOR", "VISTA", "VITAE", "VITAL", "VITRO", "VIVID", "VOCAL", "VODKA", "VOICE", "VOLTS", "WALLS", "WALTZ", "WANNA", "WARNS", "WATCH", "WAVES", "WEARY", "WEAVE", "WEBER", "WEEKS", "WEIGH", "WELCH", "WHARF", "WHICH", "WHILE", "WHORE", "WIDOW", "WIDTH", "WIGHT", "WINDS", "WINDY", "WITTY", "WOMAN", "WOODS", "WOODY", "WORKS", "WORLD", "WORMS", "WORRY", "WOULD", "WOUND", "WOVEN", "WRECK", "XEROX", "YAHOO", "YIELD", "YOUNG", "YOUTH", "YUKON", "YUMMY", "ZAIRE", "ZONES"], "6": ["ABSORB", "ABSURD", "ACCENT", "ACCEPT", "ACCESS", "ACCORD", "ACTIVE", "ACTUAL", "ADJUST", "ADULTS", "ADVERT", "AFFECT", "AFFIRM", "AFFORD", "AFRAID", "AGEING", "AGENCY", "AIMING", "ALASKA", "ALBANY", "ALEXIS", "ALICIA", "ALLIED", "ALWAYS", "AMAZED", "AMAZON", "ANDREA", "ANNALS", "ANNUAL", "ANYONE", "ANYWAY", "APPEAR", "APPROX", "ARABIA", "ARCADE", "ARCTIC", "ARMOUR", "ARRAYS", "ARTHUR", "ASSAYS", "ASSIGN", "ASYLUM", "ATTACK", "AUBURN", "AUDREY", "AUGUST", "AURORA", "AUSSIE", "AUSTIN", "AUTHOR", "AUTISM", "AUTUMN", "AVALON", "AVATAR", "AVENUE", "AWARDS", "AWHILE", "BABIES", "BACKED", "BACKUP", "BADGES", "BAILEY", "BAKING", "BALLAD", "BALLOT", "BALTIC", "BAMBOO", "BANANA", "BANNED", "BANNER", "BARRED", "BARREL", "BASICS", "BASQUE", "BAXTER", "BEANIE", "BEATEN", "BEAUTY", "BEAVER", "BECOME", "BEETLE", "BEFORE", "BEHALF", "BEHAVE", "BEHIND", "BEHOLD", "BELONG", "BENIGN", "BERGER", "BERLIN", "BERNIE", "BESIDE", "BETTER", "BEWARE", "BEYOND", "BIBLES", "BIGGER", "BIKING", "BIKINI", "BILLED", "BILOXI", "BIOPSY", "BIRTHS", "BISHOP", "BITING", "BITMAP", "BLACKS", "BLADES", "BLANKS", "BLAZER", "BLENDS", "BLINDS", "BLOCKS", "BLOODY", "BLOOMS", "BODILY", "BOMBAY", "BONDED", "BONNIE", "BOOGIE", "BOOKED", "BORROW", "BOSTON", "BOTANY", "BOTTLE", "BOTTOM", "BOUGHT", "BOUNCE", "BOUNDS", "BOUNTY", "BOVINE", "BOWMAN", "BOXING", "BRANCH", "BRANDS", "BRANDY", "BRAVES", "BRAZIL", "BRICKS", "BRIGGS", "BRIGHT", "BRINGS", "BROKEN", "BROKER", "BROOKS", "BROWNS", "BRUNCH", "BRUTAL", "BUBBLE", "BUCKET", "BUDGET", "BUENOS", "BUFFET", "BULLET", "BUMPER", "BUNKER", "BUREAU", "BURGER", "BURIAL", "BURTON", "BUTTER", "BUTTON", "BUYING", "BYLAWS", "BYPASS", "CABINS", "CABLES", "CACHED", "CACTUS", "CALLED", "CALVIN", "CAMDEN", "CAMPER", "CAMPUS", "CANADA", "CANCEL", "CANDID", "CANNED", "CANNON", "CANOPY", "CANVAS", "CAPITA", "CAPPED", "CARMEN", "CAUCUS", "CAUGHT", "CAVITY", "CAYMAN", "CEASED", "CELEBS", "CELTIC", "CEMENT", "CENSUS", "CHAMPS", "CHANCE", "CHANGE", "CHECKS", "CHEESE", "CHENEY", "CHEQUE", "CHERRY", "CHOOSE", "CHORDS", "CHUBBY", "CHURCH", "CIGARS", "CITING", "CLAMPS", "CLASSY", "CLERGY", "CLERKS", "CLEVER", "CLICKS", "CLIMAX", "CLINIC", "CLOCKS", "CLOSED", "CLOSET", "CLOUDS", "CLOUDY", "COBALT", "CODING", "COFFEE", "COFFIN", "COHORT", "COLLAR", "COLONY", "COLORS", "COLOUR", "COLUMN", "COMEDY", "COMMIT", "COMMON", "COMPLY", "CONDOM", "CONSTR", "CONVEX", "CONVEY", "COOKED", "COOKIE", "COOPER", "COPIER", "COPIES", "COPPER", "CORNER", "CORTEX", "COSMOS", "COTTON", "COUNTY", "COUSIN", "COWARD", "COWBOY", "CRACKS", "CRAFTS", "CREOLE", "CRISES", "CRISIS", "CROSBY", "CROWDS", "CRUNCH", "CRYING", "CRYPTO", "CURVED", "CUTTER", "CYCLES", "CYCLIC", "DAKOTA", "DALLAS", "DALTON", "DARKER", "DATING", "DAWSON", "DEADLY", "DEBATE", "DEBBIE", "DEBTOR", "DECADE", "DEEMED", "DEFEAT", "DEFECT", "DEGREE", "DELUXE", "DENOTE", "DEPTHS", "DEPUTY", "DETECT", "DEVICE", "DEVILS", "DEXTER", "DIABLO", "DIGEST", "DIGITS", "DILDOS", "DIVIDE", "DIVINE", "DIVING", "DOCKET", "DOCTOR", "DOLLAR", "DONALD", "DONKEY", "DOOMED", "DORADO", "DOTTED", "DOUBTS", "DRAFTS", "DREAMY", "DRILLS", "DRINKS", "DRIVER", "DRUPAL", "DRYERS", "DRYING", "DUBBED", "DUBLIN", "DUDLEY", "DULUTH", "DUMPED", "DUPLEX", "DURHAM", "DWIGHT", "EAGLES", "ECHOES", "EFFECT", "EFFORT", "EIGHTY", "EITHER", "ELDERS", "ELEVEN", "ELIJAH", "EMBLEM", "EMBRYO", "EMERGE", "ENCODE", "ENCORE", "ENGAGE", "ENJOYS", "ENOUGH", "ENROLL", "ENZYME", "EQUINE", "EQUITY", "ERRORS", "ESSAYS", "ETHNIC", "EUREKA", "EUROPA", "EUROPE", "EVOLVE", "EXCEED", "EXCESS", "EXCISE", "EXCITE", "EXCUSE", "EXEMPT", "EXODUS", "EXPAND", "EXPERT", "EXPIRE", "EXPIRY", "EXPOSE", "EXTENT", "EXTERN", "FABRIC", "FACING", "FADING", "FAIRLY", "FALLEN", "FAMILY", "FAMOUS", "FAULTY", "FAVORS", "FAVOUR", "FEDORA", "FELLOW", "FELONY", "FEMALE", "FENCES", "FIDDLE", "FIERCE", "FIESTA", "FIGHTS", "FIGURE", "FILING", "FILLED", "FILMED", "FILTHY", "FINALS", "FINISH", "FINITE", "FIRING", "FIRMLY", "FISHES", "FITTED", "FIXING", "FLAVOR", "FLAWED", "FLEECE", "FLIGHT", "FLOODS", "FLOORS", "FLOPPY", "FLORAL", "FLORES", "FLUFFY", "FLYERS", "FOLDED", "FOLLOW", "FORCED", "FORGED", "FORGET", "FORGOT", "FORMAL", "FORMAT", "FORUMS", "FOSSIL", "FOUGHT", "FOURTH", "FRAMES", "FRANCE", "FRANCO", "FRANCS", "FREELY", "FREEZE", "FRENCH", "FRENZY", "FRESNO", "FRIDAY", "FRIDGE", "FRONTS", "FROZEN", "FRUITS", "FUCKED", "FULFIL", "FULLER", "FUNDED", "FUSION", "FUTURE", "GAGGED", "GAINED", "GALAXY", "GALLON", "GAMBIA", "GAMBLE", "GARAGE", "GARLIC", "GASKET", "GAUGES", "GEISHA", "GENDER", "GENIUS", "GENOME", "GENTLY", "GENTOO", "GHETTO", "GHOSTS", "GIVING", "GLADLY", "GLAZED", "GLOBAL", "GLOSSY", "GLOVES", "GOSSIP", "GOTHIC", "GOTTEN", "GOVERN", "GRANNY", "GRAPHS", "GREECE", "GREEKS", "GRILLS", "GROOVY", "GROUND", "GROUPS", "GROWTH", "GUIDED", "GUILTY", "GUITAR", "HACKED", "HACKER", "HAMMER", "HAPPEN", "HARBOR", "HARDER", "HARDLY", "HARPER", "HAVING", "HAWAII", "HAZARD", "HEADED", "HEALTH", "HEATED", "HEAVEN", "HEBREW", "HELMET", "HELPED", "HELPER", "HERBAL", "HEREBY", "HIDDEN", "HIDING", "HIGHER", "HIGHLY", "HIKING", "HIRING", "HOLDEN", "HOLDER", "HOLLOW", "HONORS", "HONOUR", "HOODED", "HOODIE", "HOOKED", "HOPING", "HOPPER", "HORROR", "HOSTED", "HOTTIE", "HOURLY", "HOUSED", "HOWARD", "HUMANS", "HUMBLE", "HUMMER", "HUMOUR", "HUNGRY", "HUNTER", "HURLEY", "HYBRID", "IMMUNE", "IMPOSE", "INCOME", "INDIAN", "INDIGO", "INDOOR", "INFANT", "INFECT", "INJURY", "INLAND", "INLINE", "INNING", "INSIST", "INTACT", "INVEST", "INVITE", "INVOKE", "IRAQIS", "ISAIAH", "ISLAND", "JABBER", "JACKET", "JACKIE", "JAGUAR", "JANICE", "JARGON", "JARVIS", "JEANNE", "JEREMY", "JERSEY", "JESSIE", "JEWELS", "JEWISH", "JIGSAW", "JINGLE", "JOANNA", "JOANNE", "JOCKEY", "JOHANN", "JOHNNY", "JOINED", "JOINTS", "JOSEPH", "JOSHUA", "JUDGED", "JUDGES", "JUICES", "JULIAN", "JULIET", "JULIUS", "JUMPED", "JUMPER", "JUNGLE", "JUNIOR", "KAISER", "KANSAS", "KARATE", "KEEPER", "KERNEL", "KETTLE", "KEYPAD", "KICKED", "KILLED", "KISSED", "KISSES", "KITTEN", "KNIGHT", "KNIVES", "KOREAN", "KOSHER", "LABELS", "LABOUR", "LAGOON", "LAMBDA", "LARGER", "LARVAE", "LAURIE", "LAWFUL", "LAWSON", "LEAGUE", "LEGACY", "LEGEND", "LENGTH", "LESSER", "LETHAL", "LETTER", "LEVELS", "LIKELY", "LIKING", "LILIES", "LINDEN", "LINENS", "LIQUID", "LIQUOR", "LISBON", "LIVING", "LIZARD", "LOADED", "LOCALE", "LOCALS", "LOCKED", "LOGOUT", "LONDON", "LONELY", "LOOKED", "LOTION", "LOWELL", "LUCENT", "LUDWIG", "LUXURY", "LYRICS", "MADAME", "MAGGIE", "MAGNET", "MAGNUM", "MAKEUP", "MAKING", "MANNER", "MAPPED", "MARKET", "MARKUP", "MARLIN", "MARROW", "MARVEL", "MASSES", "MATRIX", "MAYHEM", "MEADOW", "MEDIUM", "MEDLEY", "MELODY", "MELTED", "MEMBER", "MEMOIR", "MEMORY", "MENACE", "MERCER", "MERGER", "METHYL", "METRIC", "MEXICO", "MICRON", "MIDDLE", "MIDGET", "MIDWAY", "MIGHTY", "MINERS", "MINING", "MINORS", "MIRROR", "MISERY", "MISUSE", "MIXERS", "MIXING", "MODEMS", "MODEST", "MODULE", "MOLDED", "MONKEY", "MONTHS", "MORALE", "MORROW", "MORTAL", "MOSQUE", "MOSTLY", "MOTION", "MOTORS", "MOUNTS", "MOVIES", "MOVING", "MURDER", "MUSEUM", "MYRIAD", "MYSELF", "MYSTIC", "NAMING", "NARROW", "NAUSEA", "NEEDED", "NEPHEW", "NERVES", "NEWEST", "NINETY", "NOBODY", "NODDED", "NORMAL", "NOTION", "NOZZLE", "NUMBER", "NURSES", "NYLONS", "OBJECT", "OCCULT", "OCCUPY", "OPAQUE", "OPPOSE", "ORGASM", "OUTING", "OUTLAW", "OXYGEN", "PACKED", "PACKET", "PADDED", "PADDLE", "PALLET", "PARADE", "PARODY", "PASSES", "PASTRY", "PAVING", "PAYDAY", "PAYING", "PEANUT", "PENCIL", "PEOPLE", "PEPPER", "PETITE", "PEWTER", "PHONES", "PHOTON", "PICKED", "PICKUP", "PICNIC", "PILLAR", "PILLOW", "PIPING", "PIXELS", "PLACED", "PLANAR", "PLANTS", "PLAQUE", "PLATED", "PLAYED", "PLEDGE", "PLURAL", "POCKET", "POETRY", "POISON", "POLICE", "POLICY", "POLLEN", "POORLY", "POPPED", "POSTAL", "POWERS", "PREFER", "PRETTY", "PRIMER", "PRIZES", "PROMPT", "PROOFS", "PROPER", "PROVED", "PROVEN", "PROVES", "PSYCHO", "PUBLIC", "PULLED", "PUMPED", "PUNDIT", "PUPPET", "PURELY", "PURITY", "PURSUE", "PUSHED", "PUSHES", "PUZZLE", "QUARRY", "QUARTZ", "QUEENS", "QUILTS", "QUORUM", "QUOTED", "RABBIT", "RACISM", "RADIAL", "RATHER", "RAVENS", "REALMS", "REBELS", "REDUCE", "REFLEX", "REFUGE", "REFUSE", "REGRET", "REJECT", "REMAKE", "REMEDY", "RESUME", "REVOLT", "RHYMES", "RHYTHM", "RIDING", "RIPPER", "RITUAL", "RIVALS", "RIVERS", "ROCKET", "ROLLED", "ROOKIE", "ROOTED", "ROTARY", "ROUNDS", "RUBBER", "RUMORS", "RUNNER", "RUNOFF", "RUSHED", "SAFARI", "SAFETY", "SAILOR", "SALADS", "SALARY", "SALMON", "SAVERS", "SAVING", "SAYING", "SCALES", "SCARCE", "SCENIC", "SCOTCH", "SCREWS", "SCRIPT", "SCROLL", "SEASON", "SEPTIC", "SESAME", "SETTLE", "SEWAGE", "SEXUAL", "SHADOW", "SHAKES", "SHARKS", "SHAVED", "SHELLS", "SHERRY", "SHIELD", "SHIFTS", "SHINES", "SHIRTS", "SHOCKS", "SHOPPE", "SHOULD", "SHOWED", "SHRIMP", "SHRINK", "SHRUBS", "SIDING", "SIGHTS", "SIRIUS", "SIZING", "SKETCH", "SKIING", "SKILLS", "SKINNY", "SLEEPY", "SLICED", "SLICES", "SLOPES", "SLOVAK", "SLOWLY", "SLUDGE", "SMELLS", "SMOKED", "SMOOTH", "SNACKS", "SOCKET", "SOFTLY", "SOLELY", "SOLVED", "SOPHIA", "SORROW", "SOUNDS", "SPARKS", "SPEAKS", "SPEEDS", "SPEEDY", "SPELLS", "SPENDS", "SPIKES", "SPLASH", "SPLITS", "SPOKEN", "SPRING", "SPRUCE", "SPYING", "SQUARE", "SQUASH", "STACKS", "STALLS", "STAMPS", "STANDS", "STARTS", "STEREO", "STICKS", "STICKY", "STILLS", "STITCH", "STOCKS", "STORMS", "STOVES", "STRAND", "STRESS", "STRICT", "STRING", "STRONG", "STRUCT", "STUDIO", "STUPID", "STURDY", "STYLED", "STYLUS", "SUBMIT", "SUBSET", "SUBURB", "SUCKED", "SUDDEN", "SUFFIX", "SULFUR", "SUNDAY", "SUPERB", "SUPPLY", "SURELY", "SURFER", "SURVEY", "SWEETS", "SWINGS", "SWITCH", "SWIVEL", "SWORDS", "SYNTAX", "TACKLE", "TAKING", "TALKED", "TANDEM", "TANNED", "TANNER", "TAPPED", "TARIFF", "TATTOO", "TAUGHT", "TAURUS", "TAVERN", "TENANT", "TERROR", "THANKS", "THEMED", "THEORY", "THINKS", "THIRDS", "THIRTY", "THONGS", "THOUGH", "THRILL", "THRIVE", "THROWN", "THUMBS", "TICKET", "TIGERS", "TIGHTS", "TIMELY", "TODAYS", "TOKENS", "TOMATO", "TOMCAT", "TONGUE", "TOPPED", "TOSSED", "TOTALS", "TOWARD", "TOWING", "TOXINS", "TRAGIC", "TRENCH", "TRENDS", "TRIBAL", "TRICKY", "TRIVIA", "TROOPS", "TROPHY", "TUBING", "TUMBLE", "TUNING", "TWELVE", "TWENTY", "TYCOON", "TYPING", "UNFAIR", "UNIQUE", "UNISEX", "UNLESS", "UNLIKE", "UNLOCK", "UNPAID", "UNSEEN", "UNSURE", "UPDATE", "UPLOAD", "UPSIDE", "UPTOWN", "URGING", "USEFUL", "UTMOST", "UTOPIA", "VACANT", "VACUUM", "VAGINA", "VALLEY", "VALVES", "VANITY", "VARIED", "VAULTS", "VELVET", "VENDOR", "VENUES", "VERIFY", "VERTEX", "VIABLE", "VICTIM", "VIDEOS", "VIEWED", "VIOLIN", "VIRTUE", "VISION", "VISITS", "VISUAL", "VOCALS", "VOICES", "VOLUME", "VOODOO", "VORTEX", "VOTING", "VOYAGE", "VOYEUR", "WAIVED", "WAKING", "WALKED", "WALNUT", "WANTED", "WARMTH", "WEALTH", "WEAPON", "WEEKLY", "WEIGHS", "WEIGHT", "WHILST", "WHISKY", "WHOLLY", "WICKED", "WICKER", "WIDGET", "WILDER", "WILLOW", "WINDOW", "WINERY", "WINNER", "WIRING", "WISDOM", "WISELY", "WISHED", "WIZARD", "WORKED", "WORLDS", "WRENCH", "WRETCH", "WRITER", "YELLOW", "YIELDS", "YORKER", "ZENITH", "ZIPPER", "ZODIAC", "ZOMBIE", "ZONING"]};
+
+// =============================================
+// GAME STATE
+// =============================================
+let currentDifficulty = 4;
+let currentWords = [];
+let currentIndex = 0;
+let currentWord = "";
+let currentJumble = "";
+let totalTime = 0;
+let wordStartTime = 0;
+let totalTimerInterval = null;
+let wordTimerInterval = null;
+let solved = 0;
+let wordResults = [];
+let pendingScore = null;
+const WORDS_PER_ROUND = 10;
+const SKIP_PENALTY = 10;
+
+// =============================================
+// SCREEN MANAGEMENT
+// =============================================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// =============================================
+// SCRAMBLE LOGIC
+// =============================================
+function jumbleWord(word) {
+  let arr = word.split('');
+  let jumbled;
+  let attempts = 0;
+  do {
+    jumbled = [...arr];
+    // Fisher-Yates shuffle
+    for (let i = jumbled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [jumbled[i], jumbled[j]] = [jumbled[j], jumbled[i]];
+    }
+    attempts++;
+  } while (jumbled.join('') === word && attempts < 50);
+  return jumbled.join('');
+}
+
+function pickWords(difficulty) {
+  const pool = [...WORD_LIST[String(difficulty)]];
+  // Shuffle pool
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, WORDS_PER_ROUND);
+}
+
+// =============================================
+// GAME FLOW
+// =============================================
+function startGame(difficulty) {
+  currentDifficulty = difficulty;
+  currentWords = pickWords(difficulty);
+  currentIndex = 0;
+  totalTime = 0;
+  solved = 0;
+  wordResults = [];
+
+  document.getElementById('round-label').textContent =
+    `${difficulty}-Letter Round`;
+  document.getElementById('solved-count').textContent = '0';
+
+  showScreen('game-screen');
+  startTotalTimer();
+  showWord();
+}
+
+function showWord() {
+  if (currentIndex >= WORDS_PER_ROUND) {
+    endRound();
+    return;
+  }
+
+  currentWord = currentWords[currentIndex];
+  currentJumble = jumbleWord(currentWord);
+
+  // Display jumbled letters as tiles
+  const container = document.getElementById('jumbled-word');
+  container.innerHTML = '';
+  for (const ch of currentJumble) {
+    const tile = document.createElement('span');
+    tile.className = 'jumbled-letter';
+    tile.textContent = ch;
+    container.appendChild(tile);
+  }
+
+  document.getElementById('word-count').textContent =
+    `${currentIndex + 1}/${WORDS_PER_ROUND}`;
+
+  const input = document.getElementById('answer-input');
+  input.value = '';
+  input.className = '';
+  input.maxLength = currentDifficulty;
+  input.focus();
+
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('feedback').className = 'feedback';
+
+  wordStartTime = performance.now();
+  startWordTimer();
+}
+
+function checkAnswer() {
+  const input = document.getElementById('answer-input');
+  const guess = input.value.trim().toUpperCase();
+
+  if (guess.length !== currentDifficulty) return;
+
+  if (guess === currentWord) {
+    // Correct!
+    const elapsed = (performance.now() - wordStartTime) / 1000;
+    input.className = 'correct';
+    document.getElementById('feedback').textContent = `✓ ${elapsed.toFixed(1)}s`;
+    document.getElementById('feedback').className = 'feedback good';
+
+    solved++;
+    document.getElementById('solved-count').textContent = String(solved);
+
+    wordResults.push({ word: currentWord, jumble: currentJumble, time: elapsed, skipped: false });
+    stopWordTimer();
+
+    currentIndex++;
+    setTimeout(showWord, 600);
+  } else {
+    // Wrong
+    input.className = 'wrong';
+    document.getElementById('feedback').textContent = 'Try again...';
+    document.getElementById('feedback').className = 'feedback bad';
+
+    setTimeout(() => { input.className = ''; }, 400);
+  }
+}
+
+function skipWord() {
+  totalTime += SKIP_PENALTY;
+  wordResults.push({ word: currentWord, jumble: currentJumble, time: SKIP_PENALTY, skipped: true });
+  stopWordTimer();
+
+  document.getElementById('feedback').textContent = `Skipped! Answer: ${currentWord} (+${SKIP_PENALTY}s)`;
+  document.getElementById('feedback').className = 'feedback bad';
+
+  currentIndex++;
+  setTimeout(showWord, 1200);
+}
+
+// =============================================
+// TIMERS
+// =============================================
+function startTotalTimer() {
+  const start = performance.now();
+  clearInterval(totalTimerInterval);
+  totalTimerInterval = setInterval(() => {
+    const elapsed = (performance.now() - start) / 1000 + totalTime;
+    document.getElementById('total-timer').textContent = elapsed.toFixed(1) + 's';
+  }, 100);
+}
+
+function startWordTimer() {
+  clearInterval(wordTimerInterval);
+  wordTimerInterval = setInterval(() => {
+    const elapsed = (performance.now() - wordStartTime) / 1000;
+    document.getElementById('word-timer').textContent = elapsed.toFixed(1) + 's';
+  }, 100);
+}
+
+function stopWordTimer() {
+  clearInterval(wordTimerInterval);
+}
+
+// =============================================
+// RESULTS
+// =============================================
+function endRound() {
+  clearInterval(totalTimerInterval);
+  clearInterval(wordTimerInterval);
+
+  // Calculate final total time from word results
+  totalTime = wordResults.reduce((sum, r) => sum + r.time, 0);
+
+  document.getElementById('results-title').textContent =
+    solved === WORDS_PER_ROUND ? '🏆 Perfect Round!' : 'Round Complete!';
+  document.getElementById('results-subtitle').textContent =
+    `${currentDifficulty}-Letter Words`;
+
+  document.getElementById('res-total-time').textContent = totalTime.toFixed(1) + 's';
+  document.getElementById('res-solved').textContent = `${solved}/${WORDS_PER_ROUND}`;
+  const avg = totalTime / WORDS_PER_ROUND;
+  document.getElementById('res-avg').textContent = avg.toFixed(1) + 's';
+
+  // Word breakdown
+  const container = document.getElementById('word-results');
+  container.innerHTML = '';
+  for (const r of wordResults) {
+    const row = document.createElement('div');
+    row.className = 'word-result-row' + (r.skipped ? ' skipped' : '');
+    row.innerHTML = `
+      <span class="wr-word">${r.jumble} → ${r.word}</span>
+      <span class="wr-time">${r.skipped ? 'SKIP +' + SKIP_PENALTY + 's' : r.time.toFixed(1) + 's'}</span>
+    `;
+    container.appendChild(row);
+  }
+
+  showScreen('results-screen');
+
+  // Leaderboard check
+  pendingScore = { difficulty: currentDifficulty, time: totalTime, solved: solved, date: new Date().toISOString() };
+  const lb = getLeaderboard(currentDifficulty);
+  const qualifies = lb.length < 10 || totalTime < lb[lb.length - 1].time;
+
+  if (solved > 0 && qualifies) {
+    document.getElementById('name-modal').classList.add('active');
+    const nameInput = document.getElementById('name-input');
+    nameInput.value = localStorage.getItem('unscramble_name') || '';
+    setTimeout(() => nameInput.focus(), 100);
+  }
+
+  showResultsLeaderboard();
+}
+
+// =============================================
+// LEADERBOARD
+// =============================================
+function getLeaderboard(difficulty) {
+  const key = `unscramble_lb_${difficulty}`;
+  try {
+    return JSON.parse(localStorage.getItem(key)) || [];
+  } catch { return []; }
+}
+
+function saveLeaderboard(difficulty, lb) {
+  const key = `unscramble_lb_${difficulty}`;
+  localStorage.setItem(key, JSON.stringify(lb));
+}
+
+function submitName() {
+  const name = document.getElementById('name-input').value.trim().toUpperCase() || 'ANON';
+  localStorage.setItem('unscramble_name', name);
+  document.getElementById('name-modal').classList.remove('active');
+
+  if (pendingScore) {
+    pendingScore.name = name;
+    const lb = getLeaderboard(pendingScore.difficulty);
+    lb.push(pendingScore);
+    lb.sort((a, b) => a.time - b.time);
+    if (lb.length > 10) lb.length = 10;
+    saveLeaderboard(pendingScore.difficulty, lb);
+    pendingScore = null;
+  }
+
+  showResultsLeaderboard();
+  showTitleLeaderboards();
+}
+
+function renderLeaderboard(containerId, difficulty) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const lb = getLeaderboard(difficulty);
+  const labels = { 4: '4-Letter', 5: '5-Letter', 6: '6-Letter' };
+
+  let html = `<div class="leaderboard">
+    <div class="lb-title">🏆 ${labels[difficulty]} Leaderboard</div>`;
+
+  if (lb.length === 0) {
+    html += `<div class="lb-empty">No scores yet. Be the first!</div>`;
+  } else {
+    for (let i = 0; i < lb.length; i++) {
+      const entry = lb[i];
+      const isNew = pendingScore && entry.time === pendingScore.time && entry.name === pendingScore.name;
+      html += `<div class="lb-row ${isNew ? 'highlight' : ''}">
+        <span class="lb-rank">${i + 1}.</span>
+        <span class="lb-name">${entry.name || 'ANON'}</span>
+        <span class="lb-score">${entry.time.toFixed(1)}s (${entry.solved}/${WORDS_PER_ROUND})</span>
+      </div>`;
+    }
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function showResultsLeaderboard() {
+  renderLeaderboard('results-leaderboard', currentDifficulty);
+}
+
+function showTitleLeaderboards() {
+  const container = document.getElementById('title-leaderboards');
+  let hasAny = false;
+  let html = '';
+  for (const d of [4, 5, 6]) {
+    const lb = getLeaderboard(d);
+    if (lb.length > 0) {
+      hasAny = true;
+      const labels = { 4: '4-Letter', 5: '5-Letter', 6: '6-Letter' };
+      html += `<div class="leaderboard" style="margin-bottom:12px;">
+        <div class="lb-title">🏆 ${labels[d]} Best</div>`;
+      for (let i = 0; i < Math.min(3, lb.length); i++) {
+        html += `<div class="lb-row">
+          <span class="lb-rank">${i + 1}.</span>
+          <span class="lb-name">${lb[i].name || 'ANON'}</span>
+          <span class="lb-score">${lb[i].time.toFixed(1)}s</span>
+        </div>`;
+      }
+      html += '</div>';
+    }
+  }
+  container.innerHTML = hasAny ? html : '';
+}
+
+// =============================================
+// INPUT HANDLING
+// =============================================
+document.getElementById('answer-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    checkAnswer();
+  }
+});
+
+// Only allow letters + auto-submit when correct length
+document.getElementById('answer-input').addEventListener('input', (e) => {
+  e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
+  // Auto-check when they've typed enough letters (great for mobile)
+  if (e.target.value.length === currentDifficulty) {
+    setTimeout(() => checkAnswer(), 80);
+  }
+});
+
+// Scroll input into view when virtual keyboard opens (mobile)
+document.getElementById('answer-input').addEventListener('focus', () => {
+  setTimeout(() => {
+    document.getElementById('answer-input').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 300);
+});
+
+// PWA install
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('install-banner').style.display = 'block';
+});
+
+function installPWA() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      document.getElementById('install-banner').style.display = 'none';
+    });
+  }
+}
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+// Enter on name modal
+document.getElementById('name-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') submitName();
+});
+
+// Init
+showTitleLeaderboards();
+</script>
+
+</body>
+</html>
