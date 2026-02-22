@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'unscramble-v2';
+﻿const CACHE_NAME = 'unscramble-v3';
 const ASSETS = ['index.html', 'manifest.json'];
 
 self.addEventListener('install', (e) => {
@@ -31,4 +31,5 @@ self.addEventListener('fetch', (e) => {
     })
   );
 });
+
 

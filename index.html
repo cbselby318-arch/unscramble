@@ -563,9 +563,9 @@ function countryFlag(cc) {
       // For US/CA/AU, show "STATE, CC" else just "CC"
       let display = '';
       if (['US', 'CA', 'AU'].includes(country) && region) {
-        display = region + ', ' + country;
+        display = region;
       } else if (country) {
-        display = country;
+        display = data.country_name || country;
       }
       userLocation = { region: display, country: country, flag: flag };
       console.log('Location:', display, flag);
